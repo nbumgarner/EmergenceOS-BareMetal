@@ -93,7 +93,16 @@ _start:
     mov $p4_table, %eax
     mov %eax, %cr3
 
-    /* 4. ENABLE LONG MODE */
+    /* 4. ENABLE SSE */
+    mov %cr0, %eax
+    and $0xFFFB, %ax  /* clear coprocessor emulation CR0.EM */
+    or $0x2, %ax      /* set coprocessor monitoring  CR0.MP */
+    mov %eax, %cr0
+    mov %cr4, %eax
+    or $0x600, %eax   /* set CR4.OSFXSR and CR4.OSXMMEXCPT */
+    mov %eax, %cr4
+
+    /* 5. ENABLE LONG MODE */
     mov $0xC0000080, %ecx
     rdmsr
     or $(1 << 8), %eax
@@ -142,11 +151,8 @@ exception_handler_ud:
 
 .global exception_handler_gp
 exception_handler_gp: 
-    pop %rax /* Error code */
-    push %rax 
-    push %rax 
-    lea 8(%rsp), %rdi /* RIP */
     pop %rsi /* Error code */
+    mov (%rsp), %rdi /* RIP is now at the top of the stack */
     call handle_gp_fault
     cli
     hlt

@@ -26,7 +26,7 @@ namespace Emergence {
     class SubShannonEngine {
     private:
         Topology& manifold_;
-        static constexpr int CANDIDATES = 128;
+        static constexpr int CANDIDATES = 2048;
 
         // Position-Aware CRC for Disambiguation
         inline uint8_t position_crc(uint64_t shi, uint64_t slo, const ContextAccumulator& ctx, size_t position) const {
