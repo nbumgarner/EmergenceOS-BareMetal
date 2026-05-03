@@ -192,8 +192,9 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
 
     // 4. AUTHENTICATION (HARDENED)
     char hwid[16]; Consensus::generate_device_id(hwid);
-    // In a real environment, we'd prompt for password and use Argon2Sovereign::derive
-    Emergence::Seed master = {0x1234567890ABCDEFULL, 0xABCDEF0123456789ULL};
+    // Gestation Pass: Derive initial seed using the hard-coded bootstrap
+    Emergence::Seed master = Emergence::Argon2Sovereign::derive("phoenix-v1", hwid, nullptr);
+    EmergenceOS::g_master_seed = master;
 
     // 5. Initialize Manifold
     EmergenceOS::g_manifold_instance = new (manifold_storage) Emergence::SubstrateManifold();
@@ -203,6 +204,12 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
         EmergenceOS::g_manifold_instance->manual_init(32, EmergenceOS::g_disk);
     #endif
     EmergenceOS::g_manifold_instance->initialize(master);
+
+    // Hardened Pass: Re-derive seed using the manifold as memory-hardness backing
+    master = Emergence::Argon2Sovereign::derive("phoenix-v1", hwid, EmergenceOS::g_manifold_instance);
+    EmergenceOS::g_master_seed = master;
+    EmergenceOS::g_manifold_instance->initialize(master); // Re-init with hardened seed
+
 
     // 6.1 Initialize Transducer
     static uint8_t trans_storage[sizeof(Emergence::LogicTransducer)] __attribute__((aligned(16)));
@@ -223,9 +230,29 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
 
     // 8. Draw UI
     uint64_t lfb = 0; uint32_t w=0, h=0, p=0;
-    // (Multiboot parsing logic truncated for brevity, same as before)
+    bool vga_active = false;
+
+    if (magic == 0x36d76289) {
+        uint32_t total_size = *(uint32_t*)(uintptr_t)info_addr;
+        uint8_t* tag = (uint8_t*)(uintptr_t)(info_addr + 8);
+        while (tag < (uint8_t*)(uintptr_t)(info_addr + total_size)) {
+            uint32_t type = *(uint32_t*)tag;
+            uint32_t size = *(uint32_t*)(tag + 4);
+            if (type == 0) break;
+            if (type == 8) { 
+                lfb = *(uint64_t*)(tag + 8);
+                p = *(uint32_t*)(tag + 16);
+                w = *(uint32_t*)(tag + 20);
+                h = *(uint32_t*)(tag + 24);
+                vga_active = true;
+            }
+            tag += ((size + 7) & ~7);
+        }
+    }
+
     static uint8_t vga_storage[sizeof(EmergenceOS::Graphics)] __attribute__((aligned(16)));
     EmergenceOS::g_vga = new (vga_storage) EmergenceOS::Graphics();
+    if (vga_active) EmergenceOS::g_vga->initialize(lfb, w, h, p);
     
     static uint8_t control_storage[sizeof(EmergenceOS::NeumannControlPanel)] __attribute__((aligned(16)));
     EmergenceOS::g_control = new (control_storage) EmergenceOS::NeumannControlPanel(EmergenceOS::g_vga, EmergenceOS::g_res, master);

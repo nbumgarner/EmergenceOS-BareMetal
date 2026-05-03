@@ -33,7 +33,7 @@ multiboot_header_end:
 p4_table: .skip 4096
 p3_table: .skip 4096
 p2_table: .skip 16384 /* 4GB map */
-stack_bottom: .skip 16384
+stack_bottom: .skip 65536
 stack_top:
 
 .section .rodata

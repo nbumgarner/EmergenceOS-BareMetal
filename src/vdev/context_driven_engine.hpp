@@ -134,10 +134,10 @@ namespace Emergence {
             size_t current_len = len;
             uint8_t* current_data = (uint8_t*)data;
             
-            // For bare-metal, we statically allocate 3 layer buffers
-            Correction layer1[4096];
-            Correction layer2[1024];
-            Correction layer3[256];
+            // Move large buffers to static storage to prevent stack overflow
+            static Correction layer1[4096];
+            static Correction layer2[1024];
+            static Correction layer3[256];
             
             // Layer 1
             size_t c1_count = evaporate_layer(master_seed_hi ^ 0x1111111111111111ULL, master_seed_lo, current_data, current_len, layer1);

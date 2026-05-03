@@ -71,14 +71,14 @@ namespace EmergenceOS {
 
             uintptr_t vmxon_phys = (uintptr_t)vmxon_region;
             uint8_t error;
-            __asm__ __volatile__ ("vmxon %1; setna %0" : "=g"(error) : "m"(vmxon_phys) : "cc");
+            __asm__ __volatile__ ("vmxon (%1); setna %0" : "=g"(error) : "r"(&vmxon_phys) : "cc", "memory");
             if (error) return false;
 
             // 4. VMPTRLD
             uint32_t* vmcs_ptr = (uint32_t*)vmcs_region;
             *vmcs_ptr = (uint32_t)revision_id;
             uintptr_t vmcs_phys = (uintptr_t)vmcs_region;
-            __asm__ __volatile__ ("vmptrld %1; setna %0" : "=g"(error) : "m"(vmcs_phys) : "cc");
+            __asm__ __volatile__ ("vmptrld (%1); setna %0" : "=g"(error) : "r"(&vmcs_phys) : "cc", "memory");
             
             return !error;
         }
