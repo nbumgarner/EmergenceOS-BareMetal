@@ -22,16 +22,12 @@
 
 static uint8_t pmm_storage[sizeof(EmergenceOS::PhysicalMemory)] __attribute__((aligned(16)));
 static uint8_t manifold_storage[sizeof(Emergence::SubstrateManifold)] __attribute__((aligned(16)));
-static uint8_t service_storage[sizeof(EmergenceOS::SubstrateService)] __attribute__((aligned(16)));
-static uint8_t virtio_storage[sizeof(EmergenceOS::VirtIOBlock)] __attribute__((aligned(16)));
 
 namespace EmergenceOS {
     Emergence::SubstrateManifold* g_manifold_instance = nullptr;
     Graphics* g_vga = nullptr;
     DynamicResourceAllocator* g_res = nullptr;
     AHCIDriver* g_disk = nullptr;
-    SubstrateService* g_service = nullptr;
-    VirtIOBlock* g_virtio = nullptr;
     Emergence::LogicTransducer* g_transducer = nullptr;
     VMXController* g_vmx = nullptr;
     Emergence::AuditLogger* g_audit = nullptr;
@@ -40,13 +36,10 @@ namespace EmergenceOS {
     
     bool g_in_shell = true;
     bool g_in_control_panel = false;
-    bool g_hardware_locked = false;
-
-    inline uint64_t rdtsc() {
-        uint32_t lo, hi;
-        __asm__ __volatile__ ("rdtsc" : "=a"(lo), "=d"(hi));
-        return ((uint64_t)hi << 32) | lo;
-    }
+    
+    uint32_t hypercube_frame = 0;
+    int phase_lock_divisor = 1;
+    NeumannControlPanel::Region g_focus = NeumannControlPanel::REGION_CONSOLE;
 
     void kstrcmp(const char* s1, const char* s2, bool& match) {
         match = true;
@@ -66,9 +59,6 @@ namespace EmergenceOS {
         return true;
     }
 
-    uint32_t hypercube_frame = 0;
-    int phase_lock_divisor = 1;
-
     void sovereign_shell(Keyboard& kb) {
         char cmd[128];
         int cmd_idx = 0;
@@ -76,43 +66,57 @@ namespace EmergenceOS {
 
         while(g_in_shell) {
             if (g_in_control_panel) {
-                g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), nullptr);
+                g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, nullptr);
                 g_vga->draw_spinning_cube(hypercube_frame, 0, 0, (hypercube_frame % (60 * phase_lock_divisor) == 0), 0, 0);
                 
-                g_vga->print_at("[PHOENIX]> ", 320, 500, 0x0000FF00);
+                uint32_t prompt_color = (g_focus == NeumannControlPanel::REGION_CONSOLE) ? 0x0000FF00 : 0x00003333;
+                g_vga->print_at("[PHOENIX]> ", 320, 500, prompt_color);
                 g_vga->print_at(cmd, 410, 500, 0x00FFFFFF);
-                if ((hypercube_frame / 16) % 2) g_vga->print_at("_", 410 + (cmd_idx * 8), 500, 0x0000FF00);
+                if (g_focus == NeumannControlPanel::REGION_CONSOLE && (hypercube_frame / 16) % 2) 
+                    g_vga->print_at("_", 410 + (cmd_idx * 8), 500, 0x0000FF00);
             }
 
             g_vga->swap_buffers();
             hypercube_frame++;
             
-            char c = kb.read_char_nonblock();
+            uint8_t sc = kb.read_raw_scancode();
+            if (sc == 0) continue;
+            
+            if (sc == Keyboard::KEY_TAB) {
+                g_focus = (NeumannControlPanel::Region)((g_focus + 1) % 3);
+                for(volatile int delay=0; delay<10000000; delay++); // Debounce
+                continue;
+            }
+
+            if (g_focus == NeumannControlPanel::REGION_SCHEDULING) {
+                if (sc == Keyboard::KEY_UP) g_res->set_active_cores(2);
+                if (sc == Keyboard::KEY_DOWN) g_res->set_active_cores(1);
+                continue;
+            }
+
+            char c = kb.scancode_to_char(sc);
             if (c == 0) continue;
 
-            if (c == '+') phase_lock_divisor++;
-            if (c == '-' && phase_lock_divisor > 1) phase_lock_divisor--;
+            if (c == '+' && g_focus == NeumannControlPanel::REGION_MANIFOLD) phase_lock_divisor++;
+            if (c == '-' && g_focus == NeumannControlPanel::REGION_MANIFOLD && phase_lock_divisor > 1) phase_lock_divisor--;
 
             if (c == '\n' || c == '\r') {
                 cmd[cmd_idx] = '\0';
-                if (kstarts_with(cmd, "back")) {
-                    g_in_control_panel = false;
-                } else if (kstarts_with(cmd, "fold")) {
-                    g_res->fold_manifold(1);
-                } else if (kstarts_with(cmd, "verify")) {
+                if (kstarts_with(cmd, "back")) { g_in_control_panel = false; }
+                else if (kstarts_with(cmd, "fold")) { g_res->fold_manifold(1); }
+                else if (kstarts_with(cmd, "verify")) {
                     static const uint8_t EXPECTED[32] = {0x33,0x9A,0x2A,0xFC,0x43,0x35,0x91,0x23,0x1F,0x0A,0x99,0x87,0x6A,0x1C,0xDE,0x43,0x21,0x7F,0xA3,0x99,0xBC,0xD1,0x23,0x4F,0x6E,0x1A,0x2B,0x3C,0x4D,0x5E,0x6F,0x7A};
-                    g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), EXPECTED);
+                    g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, EXPECTED);
                     g_vga->swap_buffers();
-                    for(volatile int delay=0; delay<100000000; delay++);
+                    for(volatile int delay=0; delay<200000000; delay++);
                 }
-                kmemset(cmd, 0, 128);
-                cmd_idx = 0;
+                kmemset(cmd, 0, 128); cmd_idx = 0;
                 continue;
             }
 
             if (c == '\b' && cmd_idx > 0) {
                 cmd[--cmd_idx] = '\0';
-            } else if (cmd_idx < 127 && c >= 32) {
+            } else if (cmd_idx < 127 && c >= 32 && g_focus == NeumannControlPanel::REGION_CONSOLE) {
                 cmd[cmd_idx++] = c;
             }
         }

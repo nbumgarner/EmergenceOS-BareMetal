@@ -31,7 +31,26 @@ namespace EmergenceOS {
         };
 
     public:
+        // Non-ASCII Scancodes
+        static constexpr uint8_t KEY_TAB = 0x0F;
+        static constexpr uint8_t KEY_UP = 0x48;
+        static constexpr uint8_t KEY_DOWN = 0x50;
+        static constexpr uint8_t KEY_LEFT = 0x4B;
+        static constexpr uint8_t KEY_RIGHT = 0x4D;
+        static constexpr uint8_t KEY_F1 = 0x3B;
+        static constexpr uint8_t KEY_F2 = 0x3C;
+
         Keyboard() {}
+
+        uint8_t read_raw_scancode() {
+            if (!is_data_available()) return 0;
+            return inb(DATA_PORT);
+        }
+
+        char scancode_to_char(uint8_t scancode) {
+            if (scancode & 0x80) return 0;
+            return scancode_map[scancode];
+        }
 
         void update_state() {
             if (!is_data_available()) return;
