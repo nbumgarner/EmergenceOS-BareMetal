@@ -52,33 +52,74 @@ namespace EmergenceOS {
         }
 
         bool enable() {
-            // 1. Check VMX support
+            // 0. Enable VMX in IA32_FEATURE_CONTROL (MSR 0x3A)
+            uint32_t lo, hi;
+            __asm__ __volatile__ ("rdmsr" : "=a"(lo), "=d"(hi) : "c"(0x3A));
+            if (!(lo & 1)) {
+                // Lock bit (bit 0) not set, enable VMX outside SMX (bit 2) and lock
+                lo |= 0x5; 
+                __asm__ __volatile__ ("wrmsr" : : "a"(lo), "d"(hi), "c"(0x3A));
+            } else if (!(lo & 0x4)) {
+                // Locked but VMX disabled by BIOS/Firmware
+                return false;
+            }
+
+            // 1. Check VMX support (CPUID.1:ECX.bit 5)
             uint32_t ecx;
             __asm__ __volatile__ ("cpuid" : "=c"(ecx) : "a"(1));
             if (!(ecx & (1 << 5))) return false;
 
-            // 2. Set CR4.VMXE
-            uint64_t cr4;
+            // 2. Set CR4.VMXE (bit 13) and apply fixed bits
+            uint64_t cr4, cr0;
             __asm__ __volatile__ ("mov %%cr4, %0" : "=r"(cr4));
             cr4 |= (1 << 13);
+            
+            // Apply VMX fixed bits for CR4
+            uint32_t f0, f1;
+            __asm__ __volatile__ ("rdmsr" : "=a"(f0), "=d"(f1) : "c"(0x488)); // IA32_VMX_CR4_FIXED0
+            cr4 |= f0;
+            __asm__ __volatile__ ("rdmsr" : "=a"(f0), "=d"(f1) : "c"(0x489)); // IA32_VMX_CR4_FIXED1
+            cr4 &= f0; // In rdmsr, 'a' is the low 32 bits (the mask)
             __asm__ __volatile__ ("mov %0, %%cr4" : : "r"(cr4));
 
+            // Apply VMX fixed bits for CR0
+            __asm__ __volatile__ ("mov %%cr0, %0" : "=r"(cr0));
+            __asm__ __volatile__ ("rdmsr" : "=a"(f0), "=d"(f1) : "c"(0x486)); // IA32_VMX_CR0_FIXED0
+            cr0 |= f0;
+            __asm__ __volatile__ ("rdmsr" : "=a"(f0), "=d"(f1) : "c"(0x487)); // IA32_VMX_CR0_FIXED1
+            cr0 &= f0;
+            __asm__ __volatile__ ("mov %0, %%cr0" : : "r"(cr0));
+
             // 3. VMXON
+            uint64_t revision_id_full;
+            uint32_t r_lo, r_hi;
+            __asm__ __volatile__ ("rdmsr" : "=a"(r_lo), "=d"(r_hi) : "c"(0x480));
+            
             uint32_t* vmxon_ptr = (uint32_t*)vmxon_region;
-            uint64_t revision_id;
-            __asm__ __volatile__ ("rdmsr" : "=a"(revision_id) : "c"(0x480));
-            *vmxon_ptr = (uint32_t)revision_id;
+            *vmxon_ptr = r_lo; // VMX revision identifier must be in first 31 bits
 
             uintptr_t vmxon_phys = (uintptr_t)vmxon_region;
             uint8_t error;
-            __asm__ __volatile__ ("vmxon (%1); setna %0" : "=g"(error) : "r"(&vmxon_phys) : "cc", "memory");
+            __asm__ __volatile__ (
+                "vmxon %[ptr];"
+                "setna %[err]"
+                : [err] "=g"(error)
+                : [ptr] "m"(vmxon_phys)
+                : "cc", "memory"
+            );
             if (error) return false;
 
             // 4. VMPTRLD
             uint32_t* vmcs_ptr = (uint32_t*)vmcs_region;
-            *vmcs_ptr = (uint32_t)revision_id;
+            *vmcs_ptr = r_lo;
             uintptr_t vmcs_phys = (uintptr_t)vmcs_region;
-            __asm__ __volatile__ ("vmptrld (%1); setna %0" : "=g"(error) : "r"(&vmcs_phys) : "cc", "memory");
+            __asm__ __volatile__ (
+                "vmptrld %[ptr];"
+                "setna %[err]"
+                : [err] "=g"(error)
+                : [ptr] "m"(vmcs_phys)
+                : "cc", "memory"
+            );
             
             return !error;
         }
