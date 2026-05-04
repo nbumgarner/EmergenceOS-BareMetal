@@ -64,7 +64,15 @@ namespace EmergenceOS {
         int cmd_idx = 0;
         kmemset(cmd, 0, 128);
 
+        uint64_t last_pulse = EmergenceOS::g_temporal_pulse;
+
         while(g_in_shell) {
+            // Frame Limiter: Synchronize with 100Hz PIT to prevent VMEXIT polling storms
+            while(EmergenceOS::g_temporal_pulse == last_pulse) {
+                __asm__ __volatile__ ("pause");
+            }
+            last_pulse = EmergenceOS::g_temporal_pulse;
+
             if (g_in_control_panel) {
                 g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, nullptr);
                 g_vga->draw_spinning_cube(hypercube_frame, 0, 0, (hypercube_frame % (60 * phase_lock_divisor) == 0), 0, 0);
