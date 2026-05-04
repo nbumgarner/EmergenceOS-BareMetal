@@ -29,10 +29,10 @@ namespace EmergenceOS {
             vga_->print_at("Active Neumann Bypass Cores: ", 50, 120, 0x00FFFFFF);
             vga_->print_at(buf, 280, 120, 0x0000FF00);
 
-            // 2. Virtual Data Center Layouts
-            vga_->print_at("[ VIRTUAL DATA CENTER ]", 50, 160, 0x00FFFF00);
+            // 2. Manifold Layouts
+            vga_->print_at("[ MANIFOLD DATA CENTER ]", 50, 160, 0x00FFFF00);
             vga_->int_to_str(active_vms, buf);
-            vga_->print_at("Active Sovereign VMs: ", 50, 180, 0x00FFFFFF);
+            vga_->print_at("Active Sovereign Nodes: ", 50, 180, 0x00FFFFFF);
             vga_->print_at(buf, 280, 180, 0x0000FF00);
             vga_->print_at("Available Layouts: 1. Default  2. High-Compute  3. Storage-Heavy", 50, 200, 0x00AAAAAA);
 
@@ -50,7 +50,7 @@ namespace EmergenceOS {
                 vga_->print_at("Master Seed Integrity: PENDING VERIFICATION", 50, 260, 0x00AAAAAA);
             }
 
-            vga_->print_at("Commands: 'cores <num>', 'duplicate <layout>', 'verify', 'back'", 50, 320, 0x0000FFFF);
+            vga_->print_at("Commands: 'cores <num>', 'fold <layout>', 'verify', 'back'", 50, 320, 0x0000FFFF);
             vga_->swap_buffers();
         }
     };

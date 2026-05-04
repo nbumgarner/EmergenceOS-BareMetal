@@ -115,11 +115,11 @@ namespace EmergenceOS {
             }
 
             if (kstarts_with(cmd, "mount ")) {
-                g_vga->print_at("\n MOUNTING ISO IMAGE INTO HOLOGRAPHIC SPACE...", 10, g_vga->get_cursor_y(), 0x00FFFF00);
+                g_vga->print_at("\n RESOLVING TOPOLOGICAL MAP FOR ISO DATA...", 10, g_vga->get_cursor_y(), 0x00FFFF00);
                 if (g_disk && g_disk->is_ready()) {
-                    g_vga->print_at("\n [OK] VIRTUAL BLOCK DEVICE ATTACHED.", 10, g_vga->get_cursor_y(), 0x0000FF00);
+                    g_vga->print_at("\n [OK] MANIFOLD APERTURE OPENED. DATA IS LITERAL.", 10, g_vga->get_cursor_y(), 0x0000FF00);
                 } else {
-                    g_vga->print_at("\n [FAIL] DISK NOT READY.", 10, g_vga->get_cursor_y(), 0x00FF0000);
+                    g_vga->print_at("\n [FAIL] HARDWARE NOT READY.", 10, g_vga->get_cursor_y(), 0x00FF0000);
                 }
             }
             
