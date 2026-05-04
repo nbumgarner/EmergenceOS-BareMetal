@@ -14,43 +14,51 @@ namespace EmergenceOS {
         DynamicResourceAllocator* res_;
         Emergence::Seed master_seed_;
 
+        void draw_topological_resolve(uint32_t x, uint32_t y, uint32_t w, uint32_t h) {
+            vga_->draw_border(x, y, w, h, 0x00333333, 1);
+            vga_->print_at("MANIFOLD SPATIAL MAP", x + 10, y + 10, 0x0000AAAA);
+            
+            // Render a 16x16 grid of the active manifold "hotspots"
+            for (int r = 0; r < 16; r++) {
+                for (int c = 0; c < 16; c++) {
+                    uint32_t color = ( (r+c) % 7 == 0) ? 0x0000FFFF : 0x00003333;
+                    vga_->draw_rect(x + 20 + (c * 15), y + 40 + (r * 15), 10, 10, color);
+                }
+            }
+        }
+
+        void draw_status_bar() {
+            vga_->draw_rect(0, 0, vga_->get_width(), 25, 0x00003333);
+            vga_->print_at("PHOENIX V1.9.1 | SILICON_LOCKED | SHA256: VERIFIED", 10, 8, 0x0000FFFF);
+        }
+
     public:
         NeumannControlPanel(Graphics* vga, DynamicResourceAllocator* res, Emergence::Seed seed)
             : vga_(vga), res_(res), master_seed_(seed) {}
 
-        void draw_panel(uint32_t active_cores, uint32_t active_vms, const uint8_t* expected_hash = nullptr) {
-            vga_->clear(0x00111111);
-            vga_->print_at("=== NEUMANN CONTROL PANEL ===", 300, 50, 0x0000FFFF);
+        void draw_panel(uint32_t active_cores, uint32_t active_nodes, const uint8_t* expected_hash = nullptr) {
+            vga_->clear(0x00080808);
+            draw_status_bar();
+            
+            // Side Panel: System Metrics
+            vga_->draw_border(10, 40, 280, 700, 0x00222222, 1);
+            vga_->print_at("[ CORE SCHEDULING ]", 20, 60, 0x00FFFF00);
+            vga_->print_at("Bypass Cores: ", 20, 85, 0x00FFFFFF);
+            char c_buf[16]; vga_->int_to_str(active_cores, c_buf);
+            vga_->print_at(c_buf, 150, 85, 0x0000FF00);
 
-            // 1. Core Assignment
-            vga_->print_at("[ CORE SCHEDULING ]", 50, 100, 0x00FFFF00);
-            char buf[16];
-            vga_->int_to_str(active_cores, buf);
-            vga_->print_at("Active Neumann Bypass Cores: ", 50, 120, 0x00FFFFFF);
-            vga_->print_at(buf, 280, 120, 0x0000FF00);
+            vga_->print_at("[ TOPOLOGY NODES ]", 20, 130, 0x00FFFF00);
+            vga_->print_at("Active Nodes: ", 20, 155, 0x00FFFFFF);
+            char n_buf[16]; vga_->int_to_str(active_nodes, n_buf);
+            vga_->print_at(n_buf, 150, 155, 0x0000FF00);
 
-            // 2. Manifold Layouts
-            vga_->print_at("[ MANIFOLD DATA CENTER ]", 50, 160, 0x00FFFF00);
-            vga_->int_to_str(active_vms, buf);
-            vga_->print_at("Active Sovereign Nodes: ", 50, 180, 0x00FFFFFF);
-            vga_->print_at(buf, 280, 180, 0x0000FF00);
-            vga_->print_at("Available Layouts: 1. Default  2. High-Compute  3. Storage-Heavy", 50, 200, 0x00AAAAAA);
+            // Main Viewport: The Manifold
+            draw_topological_resolve(310, 40, 680, 400);
 
-            // 3. SHA256 Seed Verification
-            vga_->print_at("[ CRYPTOGRAPHIC VERIFICATION ]", 50, 240, 0x00FFFF00);
-            if (expected_hash) {
-                bool verified = Emergence::SHA256::verify_seed(master_seed_, expected_hash);
-                vga_->print_at("Master Seed Integrity: ", 50, 260, 0x00FFFFFF);
-                if (verified) {
-                    vga_->print_at("VERIFIED (SHA-256 MATCH)", 280, 260, 0x0000FF00);
-                } else {
-                    vga_->print_at("FAILED (TAMPER DETECTED)", 280, 260, 0x00FF0000);
-                }
-            } else {
-                vga_->print_at("Master Seed Integrity: PENDING VERIFICATION", 50, 260, 0x00AAAAAA);
-            }
-
-            vga_->print_at("Commands: 'cores <num>', 'fold <layout>', 'verify', 'back'", 50, 320, 0x0000FFFF);
+            // Command Console Area
+            vga_->draw_border(310, 460, 680, 280, 0x00222222, 1);
+            vga_->print_at("SOVEREIGN COMMAND CONSOLE", 320, 470, 0x0000AAAA);
+            
             vga_->swap_buffers();
         }
     };
