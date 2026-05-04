@@ -67,15 +67,14 @@ namespace EmergenceOS {
             return count;
         }
 
-        uint32_t active_vms_ = 1;
+        uint32_t active_nodes_ = 1;
         
-        void duplicate_execution_layout(int layout_type) {
-            // Virtual Data Center: copy memory map pointers
-            // layout_type: 1=Default, 2=HighCompute, 3=Storage
-            active_vms_++;
+        void fold_manifold(int layout_type) {
+            // Literal Manifold Folding: materialize a new topological root
+            active_nodes_++;
         }
         
-        uint32_t get_active_vms() const { return active_vms_; }
+        uint32_t get_active_nodes() const { return active_nodes_; }
     };
 }
 

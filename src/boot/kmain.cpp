@@ -77,7 +77,7 @@ namespace EmergenceOS {
 
         while(g_in_shell) {
             if (g_in_control_panel) {
-                g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_vms(), nullptr);
+                g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), nullptr);
                 g_vga->print_at("\n[ControlPanel]> ", 10, g_vga->get_cursor_y(), 0x0000FF00);
             } else {
                 g_vga->print_at("\n[Sovereign]> ", 10, g_vga->get_cursor_y(), 0x0000FF00);
@@ -93,11 +93,11 @@ namespace EmergenceOS {
                     g_vga->print_at("=== SOVEREIGN SHELL v1.0 (HARDENED) ===", 10, 10, 0x0000FFFF);
                 } else if (kstarts_with(cmd, "cores ")) {
                     g_res->set_active_cores(cmd[6] - '0');
-                } else if (kstarts_with(cmd, "duplicate ")) {
-                    g_res->duplicate_execution_layout(1);
+                } else if (kstarts_with(cmd, "fold ")) {
+                    g_res->fold_manifold(1);
                 } else if (kstarts_with(cmd, "verify")) {
                     static const uint8_t EXPECTED[32] = {0x33,0x9A,0x2A,0xFC,0x43,0x35,0x91,0x23,0x1F,0x0A,0x99,0x87,0x6A,0x1C,0xDE,0x43,0x21,0x7F,0xA3,0x99,0xBC,0xD1,0x23,0x4F,0x6E,0x1A,0x2B,0x3C,0x4D,0x5E,0x6F,0x7A};
-                    g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_vms(), EXPECTED);
+                    g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), EXPECTED);
                     continue; 
                 }
                 continue;
@@ -167,13 +167,19 @@ namespace EmergenceOS {
 
             kstrcmp(cmd, "ls", match);
             if (match) {
-                g_vga->print_at("\n [VIRTUAL DATA CENTER TOPOLOGY]", 10, g_vga->get_cursor_y(), 0x0000FFFF);
-                char vms_buf[16]; g_vga->int_to_str(g_res->get_active_vms(), vms_buf);
-                g_vga->print_at("\n   Sovereign Nodes: ", 10, g_vga->get_cursor_y(), 0x00FFFFFF);
-                g_vga->print_at(vms_buf, 150, g_vga->get_cursor_y(), 0x0000FF00);
+                g_vga->print_at("\n [MANIFOLD TOPOLOGY - LITERAL]", 10, g_vga->get_cursor_y(), 0x0000FFFF);
+                char nodes_buf[16]; g_vga->int_to_str(g_res->get_active_nodes(), nodes_buf);
+                g_vga->print_at("\n   Materialized Nodes: ", 10, g_vga->get_cursor_y(), 0x00FFFFFF);
+                g_vga->print_at(nodes_buf, 180, g_vga->get_cursor_y(), 0x0000FF00);
+                
+                uint32_t saturation = (g_manifold_instance->get_used_blocks() * 100) / 1024;
+                char sat_buf[16]; g_vga->int_to_str(saturation, sat_buf);
+                g_vga->print_at("\n   Aperture Saturation: ", 10, g_vga->get_cursor_y(), 0x00FFFFFF);
+                g_vga->print_at(sat_buf, 180, g_vga->get_cursor_y(), 0x00FFFF00);
+                g_vga->print_at("%", 210, g_vga->get_cursor_y(), 0x00FFFF00);
+
                 if (g_disk && g_disk->is_ready()) {
                     g_vga->print_at("\n   HW_DISK: ONLINE (DMA READY)", 10, g_vga->get_cursor_y(), 0x0000FF00);
-                    g_vga->print_at("\n   PARTITION: VSHD [MAPPED]", 10, g_vga->get_cursor_y(), 0x00FFFFFF);
                 }
             }
 
