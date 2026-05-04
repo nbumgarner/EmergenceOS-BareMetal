@@ -25,9 +25,11 @@ namespace EmergenceOS {
     private:
         CpuCore cores[2];
         uint64_t total_ram_mb;
+        uint32_t active_nodes_;
 
     public:
-        DynamicResourceAllocator(uint64_t total_ram) : total_ram_mb(total_ram) {
+        DynamicResourceAllocator(uint64_t total_ram) : total_ram_mb(total_ram), active_nodes_(1) {
+            // Default init
             cores[0] = {0, AluMode::AVAILABLE, 0, false, "System"};
             cores[1] = {1, AluMode::AVAILABLE, 0, false, "System"};
         }
@@ -38,7 +40,6 @@ namespace EmergenceOS {
             cores[core_id].topological_mode = mode;
             cores[core_id].ram_allocated_mb = ram_allocation;
             cores[core_id].current_task = task;
-            
             console.print("[EM-1] RESOURCE: Core ");
             console.print_hex(core_id);
             console.print(" Isolated -> ");
@@ -47,8 +48,6 @@ namespace EmergenceOS {
         }
 
         void optimize_holograph(Emergence::SubstrateManifold* manifold) {
-            // Background task for secondary cores
-            // Performs predictive pre-fetching and residue journal flushing
             if (manifold) {
                 manifold->pump_dma_queue();
             }
@@ -67,10 +66,8 @@ namespace EmergenceOS {
             return count;
         }
 
-        uint32_t active_nodes_ = 1;
-        
         void fold_manifold(int layout_type) {
-            // Literal Manifold Folding: materialize a new topological root
+            (void)layout_type;
             active_nodes_++;
         }
         
