@@ -201,6 +201,15 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
         if (EmergenceOS::g_vga) {
             EmergenceOS::g_vga->clear(0x00080808);
             EmergenceOS::g_vga->print_at("=== CONSENSUS ENTERPRISE HYPERVISOR ===", 300, 200, 0x0000FFFF);
+            
+            #ifdef SOVEREIGN_BUILD
+                EmergenceOS::g_vga->print_at("PHOENIX vX [SOVEREIGN] | CAPACITY: UNLIMITED", 250, 130, 0x00FF00FF);
+            #elif defined(EVALUATION_BUILD)
+                EmergenceOS::g_vga->print_at("PHOENIX v0.5 [OPEN] | CAPACITY: 1 TB", 250, 130, 0x00FF0000);
+            #else
+                EmergenceOS::g_vga->print_at("PHOENIX v1.0 [RELEASE] | CAPACITY: 10 TB", 250, 130, 0x00FFFF00);
+            #endif
+
             if (vmx_ready) EmergenceOS::g_vga->print_at("VMX_ACCELERATION: [ENABLED]", 300, 150, 0x0000FF00);
             if (selection == 0) EmergenceOS::g_vga->print_at("> 1. Launch Sovereign Shell", 250, 240, 0x0000FF00);
             else EmergenceOS::g_vga->print_at("  1. Launch Sovereign Shell", 250, 240, 0x00FFFFFF);

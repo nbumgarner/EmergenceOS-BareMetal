@@ -36,7 +36,13 @@ namespace EmergenceOS {
 
         void draw_status_bar() {
             vga_->draw_rect(0, 0, vga_->get_width(), 25, 0x00003333);
-            vga_->print_at("PHOENIX V2.1.2 | SILICON_LOCKED | [TAB] TO SWITCH REGION", 10, 8, 0x0000FFFF);
+            #ifdef SOVEREIGN_BUILD
+                vga_->print_at("PHOENIX vX [SOVEREIGN] | CAPACITY: UNLIMITED | [TAB] TO SWITCH REGION", 10, 8, 0x0000FFFF);
+            #elif defined(EVALUATION_BUILD)
+                vga_->print_at("PHOENIX v0.5 [OPEN] | CAPACITY: 1 TB | [TAB] TO SWITCH REGION", 10, 8, 0x0000FFFF);
+            #else
+                vga_->print_at("PHOENIX v1.0 [RELEASE] | CAPACITY: 10 TB | [TAB] TO SWITCH REGION", 10, 8, 0x0000FFFF);
+            #endif
         }
 
     public:

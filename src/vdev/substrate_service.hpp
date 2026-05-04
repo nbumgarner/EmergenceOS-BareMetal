@@ -26,11 +26,11 @@ namespace EmergenceOS {
               highest_accessed_vaddr_(0), preemption_horizon_(0),
               total_bytes_written_(1), correction_bytes_stored_(1) {
             #ifdef SOVEREIGN_BUILD
-                virtual_capacity_bytes_ = 100ULL * 1024 * 1024 * 1024 * 1024; // 100 TB Phoenix
+                virtual_capacity_bytes_ = 100ULL * 1024 * 1024 * 1024 * 1024; // vX (Sovereign)
             #elif defined(EVALUATION_BUILD)
-                virtual_capacity_bytes_ = 1ULL * 1024 * 1024 * 1024 * 1024; // 1 TB Eval
+                virtual_capacity_bytes_ = 1ULL * 1024 * 1024 * 1024 * 1024; // v0.5 (Open/1TB)
             #else
-                virtual_capacity_bytes_ = 10ULL * 1024 * 1024 * 1024 * 1024; // 10 TB Default
+                virtual_capacity_bytes_ = 10ULL * 1024 * 1024 * 1024 * 1024; // v1.0 (Enterprise/10TB)
             #endif
         }
 
