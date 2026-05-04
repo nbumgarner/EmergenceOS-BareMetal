@@ -66,25 +66,30 @@ namespace EmergenceOS {
         return true;
     }
 
+    uint32_t hypercube_frame = 0;
+    int phase_lock_divisor = 1;
+
     void sovereign_shell(Keyboard& kb) {
         char cmd[128];
         bool match;
         
-        g_vga->clear(0x00000000);
-        g_vga->print_at("=== SOVEREIGN SHELL v1.0 (HARDENED) ===", 10, 10, 0x0000FFFF);
-        g_vga->print_at("Status: [CONNECTED TO SILICON]", 10, 30, 0x0000FF00);
-        g_vga->swap_buffers();
-
         while(g_in_shell) {
             if (g_in_control_panel) {
                 g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), nullptr);
-                g_vga->print_at("\n[ControlPanel]> ", 10, g_vga->get_cursor_y(), 0x0000FF00);
+                g_vga->draw_spinning_cube(hypercube_frame, 0, 0, (hypercube_frame % (60 * phase_lock_divisor) == 0), 0, 0);
             } else {
                 g_vga->print_at("\n[Sovereign]> ", 10, g_vga->get_cursor_y(), 0x0000FF00);
             }
             g_vga->swap_buffers();
+            hypercube_frame++;
             
-            kb.read_line(cmd, 128, g_vga);
+            char c = kb.read_char_nonblock();
+            if (c == '+') phase_lock_divisor++;
+            if (c == '-' && phase_lock_divisor > 1) phase_lock_divisor--;
+            if (c == 0) continue; // No key pressed
+
+            // Process keyboard buffer if it was a line-ending or specific command...
+            // (Rest of command processing)
 
             if (g_in_control_panel) {
                 if (kstarts_with(cmd, "back")) {

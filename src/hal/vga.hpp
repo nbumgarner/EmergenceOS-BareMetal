@@ -115,6 +115,53 @@ namespace EmergenceOS {
             cursor_x += 8;
             if (cursor_x >= width_) { cursor_x = 0; cursor_y += 12; }
         }
+
+        void draw_line(int x0, int y0, int x1, int y1, uint32_t color) {
+            int dx = (x1 > x0) ? (x1 - x0) : (x0 - x1);
+            int dy = (y1 > y0) ? (y1 - y0) : (y0 - y1);
+            int sx = (x0 < x1) ? 1 : -1;
+            int sy = (y0 < y1) ? 1 : -1;
+            int err = dx - dy;
+            while (true) {
+                put_pixel((uint32_t)x0, (uint32_t)y0, color);
+                if (x0 == x1 && y0 == y1) break;
+                int e2 = 2 * err;
+                if (e2 > -dy) { err -= dy; x0 += sx; }
+                if (e2 < dx) { err += dx; y0 += sy; }
+            }
+        }
+
+        void draw_spinning_cube(int frame, uint64_t lat, uint64_t depth, bool lock, uint64_t mips, uint32_t lens) {
+            static const int s_tbl[64] = {0, 25, 50, 74, 98, 120, 142, 162, 180, 197, 212, 225, 236, 244, 250, 254, 255, 254, 250, 244,
+            236, 225, 212, 197, 180, 162, 142, 120, 98, 74, 50, 25, 0, -25, -50, -74, -98, -120, -142, -162, -180, -197, -212, -225, -236,
+            -244, -250, -254, -255, -254, -250, -244, -236, -225, -212, -197, -180, -162, -142, -120, -98, -74, -50, -25};
+
+            int sin_a = s_tbl[frame % 64]; 
+            int cos_a = s_tbl[(frame + 16) % 64];
+            int cx = 800; int cy = 200; int size = 80;
+            
+            static const int v[8][3] = {{-1,-1,-1},{1,-1,-1},{1,1,-1},{-1,1,-1},{-1,-1,1},{1,-1,1},{1,1,1},{-1,1,1}};
+            int proj[8][2];
+
+            for(int i=0; i<8; i++) {
+                int rx = (v[i][0]*size*cos_a - v[i][2]*size*sin_a) >> 8;
+                int rz = (v[i][0]*size*sin_a + v[i][2]*size*cos_a) >> 8;
+                int ry = (v[i][1]*size*cos_a - rz*sin_a) >> 8;
+                rz = (v[i][1]*size*sin_a + rz*cos_a) >> 8;
+                int dist = 300 + rz;
+                proj[i][0] = cx + (rx << 9) / dist; 
+                proj[i][1] = cy + (ry << 9) / dist;
+            }
+
+            uint32_t col = lock ? 0x00FF0000 : 0x0000FFFF;
+            for(int i=0; i<4; i++) {
+                draw_line(proj[i][0], proj[i][1], proj[(i+1)%4][0], proj[(i+1)%4][1], col);
+                draw_line(proj[i+4][0], proj[i+4][1], proj[((i+1)%4)+4][0], proj[((i+1)%4)+4][1], col);
+                draw_line(proj[i][0], proj[i][1], proj[i+4][0], proj[i+4][1], col);
+            }
+            
+            print_at("MANIFOLD_PHASE", cx - 40, cy + 100, col);
+        }
     };
 }
 

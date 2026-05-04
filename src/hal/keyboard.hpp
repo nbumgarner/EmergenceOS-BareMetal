@@ -69,6 +69,16 @@ namespace EmergenceOS {
             }
         }
         
+        char read_char_nonblock() {
+            update_state();
+            if (is_data_available()) {
+                uint8_t scancode = inb(DATA_PORT);
+                if (scancode & 0x80) return 0;
+                return scancode_map[scancode];
+            }
+            return 0;
+        }
+
         void read_line(char* buf, int max, Graphics* vga = nullptr) {
             int i = 0;
             while(i < max - 1) {
