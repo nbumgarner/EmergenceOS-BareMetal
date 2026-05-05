@@ -23,6 +23,33 @@ namespace EmergenceOS {
         Emergence::Seed master_seed_;
         Emergence::SubstrateManifold* manifold_;
 
+        void draw_enigma_surpass(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t frame) {
+            vga_->draw_border(x, y, w, h, 0x00333333, 1);
+            vga_->print_at("SOVEREIGN STATE COMPLEXITY", x + 10, y + 10, 0x0000AAAA);
+            vga_->print_at("8-HOP RESOLVE: 1.2e24 COMBINATIONS", x + 10, y + 25, 0x0000FFFF);
+
+            uint32_t cx = x + w/2;
+            uint32_t cy = y + h/2 + 20;
+
+            // Render 8 concentric rings representing the 8 topological hops
+            for (int r = 0; r < 8; r++) {
+                uint32_t radius = 20 + (r * 15);
+                uint32_t color = ( (frame + r) % 8 == 0) ? 0x0000FFFF : 0x00003333;
+                
+                // Draw 12 "Rotors" per ring
+                for (int i = 0; i < 12; i++) {
+                    int angle = (i * 30) + (frame * (r+1)) / 4;
+                    // Fixed-point trig approximation for circle
+                    static const int s_tbl[12] = {0, 50, 86, 100, 86, 50, 0, -50, -86, -100, -86, -50};
+                    static const int c_tbl[12] = {100, 86, 50, 0, -50, -86, -100, -86, -50, 0, 50, 86};
+                    
+                    int rx = (radius * c_tbl[i % 12]) / 100;
+                    int ry = (radius * s_tbl[i % 12]) / 100;
+                    vga_->draw_rect(cx + rx, cy + ry, 4, 4, color);
+                }
+            }
+        }
+
         void draw_status_bar() {
             vga_->draw_rect(0, 0, vga_->get_width(), 25, 0x00003333);
             #ifdef SOVEREIGN_BUILD
@@ -62,8 +89,11 @@ namespace EmergenceOS {
             // Main Viewport: Quad-Phase Resolve (Region 1)
             vga_->draw_quad_resolve(310, 40, 680, 400, frame, manifold_);
 
+            // Global State Viewport: Enigma Surpass (Bottom Left)
+            draw_enigma_surpass(10, 460, 280, 280, frame);
+
             // Command Console Area (Region 2)
-            uint32_t console_color = (focused_region == REGION_CONSOLE) ? 0x0000FFFF : 0x00222222;
+            uint32_t console_color = (focused_region == REGION_CONSOLE) ? 0x0000FF00 : 0x00222222;
             vga_->draw_border(310, 460, 680, 280, console_color, 1);
             vga_->print_at("SOVEREIGN COMMAND CONSOLE", 320, 470, 0x0000AAAA);
             

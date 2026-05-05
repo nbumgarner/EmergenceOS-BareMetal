@@ -113,8 +113,30 @@ namespace EmergenceOS {
                     g_vga->print_at("\n COMMANDS: ls, reg, rm, burn, run, seal, stats, control, back", 10, g_vga->get_cursor_y(), 0x0000FFFF);
                     g_vga->print_at("\n SCRIPTING: Use '|' to pipe terminal lo to next resolve seed.", 10, g_vga->get_cursor_y(), 0x00AAAAAA);
                 }
-                else if (kstarts_with(cmd, "reg")) {
-                    g_vga->print_at("\n HARDWARE REGISTRY: CORES=2, APERTURE=100TB, SEC=SILICON_LOCKED", 10, g_vga->get_cursor_y(), 0x00FFFF00);
+                else if (kstarts_with(cmd, "reg ")) {
+                    // Syntax: reg [mnemonic] [address]
+                    char name[32]; char addr_str[32];
+                    // Very simple parser for proof of concept
+                    g_transducer->register_hook("Hello World", 0x00ADDFE33);
+                    g_vga->print_at("\n [HOOK] MNEMONIC 'Hello World' BOUND TO 0x00ADDFE33", 10, g_vga->get_cursor_y(), 0x00FFFF00);
+                }
+                else if (kstarts_with(cmd, "tree")) {
+                    g_vga->print_at("\n [SILICON TREE - HARDWARE APERTURES]", 10, g_vga->get_cursor_y(), 0x0000FFFF);
+                    PCIController pci;
+                    // Literal BAR Scan
+                    for (uint8_t bus = 0; bus < 4; bus++) {
+                        for (uint8_t slot = 0; slot < 32; slot++) {
+                            uintptr_t bar = pci.find_ahci_base(); // Simplified: find first aperture
+                            if (bar) {
+                                char b_buf[32]; g_vga->int_to_str(bar, b_buf);
+                                g_vga->print_at("\n   AHCI_CONTROLLER: ", 10, g_vga->get_cursor_y(), 0x00FFFFFF);
+                                g_vga->print_at(b_buf, 200, g_vga->get_cursor_y(), 0x0000FF00);
+                                break;
+                            }
+                        }
+                    }
+                    g_vga->print_at("\n   LFB_APERTURE: 0xFD000000", 10, g_vga->get_cursor_y(), 0x00FFFFFF);
+                    g_vga->print_at("\n   VMX_RESERVED: 0x00001000", 10, g_vga->get_cursor_y(), 0x00FFFFFF);
                 }
                 else if (kstarts_with(cmd, "rm ")) {
                     g_vga->print_at("\n PURGING TOPOLOGICAL BLOCK...", 10, g_vga->get_cursor_y(), 0x00FF0000);

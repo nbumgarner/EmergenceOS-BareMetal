@@ -13,9 +13,43 @@ namespace Emergence {
     class LogicTransducer {
     private:
         Topology& manifold_;
-        
+        struct Symbol {
+            char name[32];
+            uint64_t coordinate;
+        } symbol_table[64];
+        int symbol_count = 0;
+
+        uint64_t hash_mnemonic(const char* name) {
+            uint64_t h = 0xCBF29CE484222325ULL;
+            for (int i = 0; name[i] != '\0'; i++) {
+                h ^= (uint64_t)name[i];
+                h *= 0x9E3779B97F4A7C15ULL;
+            }
+            return h;
+        }
+
     public:
         LogicTransducer(Topology& manifold) : manifold_(manifold) {}
+
+        void register_hook(const char* name, uint64_t coord) {
+            if (symbol_count < 64) {
+                int i = 0; while(name[i] != '\0' && i < 31) { symbol_table[symbol_count].name[i] = name[i]; i++; }
+                symbol_table[symbol_count].name[i] = '\0';
+                symbol_table[symbol_count].coordinate = coord;
+                symbol_count++;
+            }
+        }
+
+        uint64_t get_hook_coordinate(const char* name) {
+            for (int i = 0; i < symbol_count; i++) {
+                bool match = true;
+                for (int j = 0; name[j] != '\0' || symbol_table[i].name[j] != '\0'; j++) {
+                    if (name[j] != symbol_table[i].name[j]) { match = false; break; }
+                }
+                if (match) return symbol_table[i].coordinate;
+            }
+            return 0;
+        }
 
         void burn_atom(uint64_t intent, uint64_t result_lo) {
             Value128 terminal = {0, result_lo};
