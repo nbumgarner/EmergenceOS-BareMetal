@@ -3,6 +3,11 @@
 
 #include "memory.hpp"
 
+// Forward declaration for manifold pointer
+namespace Emergence {
+    class SubstrateManifold;
+}
+
 namespace EmergenceOS {
 
     class Graphics {
@@ -40,9 +45,10 @@ namespace EmergenceOS {
         }
 
         void draw_rect(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t color) {
-            for (uint32_t i = y; i < y + h; i++) {
-                for (uint32_t j = x; j < x + w; j++) {
-                    put_pixel(j, i, color);
+            if (x >= width_ || y >= height_) return;
+            for (uint32_t i = y; i < y + h && i < height_; i++) {
+                for (uint32_t j = x; j < x + w && j < width_; j++) {
+                    back_buffer_[i * (pitch_ / 4) + j] = color;
                 }
             }
         }
@@ -130,6 +136,8 @@ namespace EmergenceOS {
                 if (e2 < dx) { err += dx; y0 += sy; }
             }
         }
+
+        void draw_quad_resolve(uint32_t x, uint32_t y, uint32_t w, uint32_t h, uint32_t master_frame, const void* manifold_ptr);
 
         void draw_spinning_cube(int frame, uint64_t lat, uint64_t depth, bool lock, uint64_t mips, uint32_t lens) {
             static const int s_tbl[64] = {0, 25, 50, 74, 98, 120, 142, 162, 180, 197, 212, 225, 236, 244, 250, 254, 255, 254, 250, 244,

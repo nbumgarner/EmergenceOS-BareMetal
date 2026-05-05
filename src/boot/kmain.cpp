@@ -63,25 +63,30 @@ namespace EmergenceOS {
         char cmd[128];
         int cmd_idx = 0;
         kmemset(cmd, 0, 128);
-
         uint64_t last_pulse = EmergenceOS::g_temporal_pulse;
+        bool prompt_needed = true;
 
         while(g_in_shell) {
-            // Frame Limiter: Synchronize with 100Hz PIT to prevent VMEXIT polling storms
-            while(EmergenceOS::g_temporal_pulse == last_pulse) {
-                __asm__ __volatile__ ("pause");
-            }
+            while(EmergenceOS::g_temporal_pulse == last_pulse) { __asm__ __volatile__ ("pause"); }
             last_pulse = EmergenceOS::g_temporal_pulse;
 
             if (g_in_control_panel) {
-                g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, nullptr);
+                g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, hypercube_frame, nullptr);
                 g_vga->draw_spinning_cube(hypercube_frame, 0, 0, (hypercube_frame % (60 * phase_lock_divisor) == 0), 0, 0);
                 
                 uint32_t prompt_color = (g_focus == NeumannControlPanel::REGION_CONSOLE) ? 0x0000FF00 : 0x00003333;
-                g_vga->print_at("[PHOENIX]> ", 320, 500, prompt_color);
-                g_vga->print_at(cmd, 410, 500, 0x00FFFFFF);
+                g_vga->print_at("[PHOENIX]> ", 320, 520, prompt_color);
+                g_vga->print_at(cmd, 410, 520, 0x00FFFFFF);
                 if (g_focus == NeumannControlPanel::REGION_CONSOLE && (hypercube_frame / 16) % 2) 
-                    g_vga->print_at("_", 410 + (cmd_idx * 8), 500, 0x0000FF00);
+                    g_vga->print_at("_", 410 + (cmd_idx * 8), 520, 0x0000FF00);
+            } else {
+                if (prompt_needed) {
+                    g_vga->clear(0x00000000);
+                    g_vga->print_at("=== SOVEREIGN SHELL vX (HARDENED) ===", 10, 10, 0x0000FFFF);
+                    g_vga->print_at("\n[Sovereign]> ", 10, 30, 0x0000FF00);
+                    prompt_needed = false;
+                }
+                g_vga->print_at(cmd, 120, 30, 0x00FFFFFF);
             }
 
             g_vga->swap_buffers();
@@ -92,7 +97,7 @@ namespace EmergenceOS {
             
             if (sc == Keyboard::KEY_TAB) {
                 g_focus = (NeumannControlPanel::Region)((g_focus + 1) % 3);
-                for(volatile int delay=0; delay<10000000; delay++); // Debounce
+                for(volatile int delay=0; delay<10000000; delay++);
                 continue;
             }
 
@@ -110,15 +115,15 @@ namespace EmergenceOS {
 
             if (c == '\n' || c == '\r') {
                 cmd[cmd_idx] = '\0';
-                if (kstarts_with(cmd, "back")) { g_in_control_panel = false; }
+                if (kstarts_with(cmd, "back")) { g_in_shell = false; return; }
                 else if (kstarts_with(cmd, "fold")) { g_res->fold_manifold(1); }
                 else if (kstarts_with(cmd, "verify")) {
                     static const uint8_t EXPECTED[32] = {0x33,0x9A,0x2A,0xFC,0x43,0x35,0x91,0x23,0x1F,0x0A,0x99,0x87,0x6A,0x1C,0xDE,0x43,0x21,0x7F,0xA3,0x99,0xBC,0xD1,0x23,0x4F,0x6E,0x1A,0x2B,0x3C,0x4D,0x5E,0x6F,0x7A};
-                    g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, EXPECTED);
+                    g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, hypercube_frame, EXPECTED);
                     g_vga->swap_buffers();
                     for(volatile int delay=0; delay<200000000; delay++);
                 }
-                kmemset(cmd, 0, 128); cmd_idx = 0;
+                kmemset(cmd, 0, 128); cmd_idx = 0; prompt_needed = true;
                 continue;
             }
 
@@ -193,7 +198,7 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
     bool vmx_ready = EmergenceOS::g_vmx->enable();
     
     static uint8_t control_storage[sizeof(EmergenceOS::NeumannControlPanel)] __attribute__((aligned(16)));
-    EmergenceOS::g_control = new (control_storage) EmergenceOS::NeumannControlPanel(EmergenceOS::g_vga, EmergenceOS::g_res, master);
+    EmergenceOS::g_control = new (control_storage) EmergenceOS::NeumannControlPanel(EmergenceOS::g_vga, EmergenceOS::g_res, master, EmergenceOS::g_manifold_instance);
     
     EmergenceOS::Keyboard kb;
     int selection = 0;
@@ -201,7 +206,6 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
         if (EmergenceOS::g_vga) {
             EmergenceOS::g_vga->clear(0x00080808);
             EmergenceOS::g_vga->print_at("=== CONSENSUS ENTERPRISE HYPERVISOR ===", 300, 200, 0x0000FFFF);
-            
             #ifdef SOVEREIGN_BUILD
                 EmergenceOS::g_vga->print_at("PHOENIX vX [SOVEREIGN] | CAPACITY: UNLIMITED", 250, 130, 0x00FF00FF);
             #elif defined(EVALUATION_BUILD)
@@ -209,7 +213,6 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
             #else
                 EmergenceOS::g_vga->print_at("PHOENIX v1.0 [RELEASE] | CAPACITY: 10 TB", 250, 130, 0x00FFFF00);
             #endif
-
             if (vmx_ready) EmergenceOS::g_vga->print_at("VMX_ACCELERATION: [ENABLED]", 300, 150, 0x0000FF00);
             if (selection == 0) EmergenceOS::g_vga->print_at("> 1. Launch Sovereign Shell", 250, 240, 0x0000FF00);
             else EmergenceOS::g_vga->print_at("  1. Launch Sovereign Shell", 250, 240, 0x00FFFFFF);
