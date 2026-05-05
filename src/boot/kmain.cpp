@@ -151,21 +151,6 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
         EmergenceOS::g_disk->initialize(&serial);
     }
 
-    char hwid[16]; Consensus::generate_device_id(hwid);
-    Emergence::Seed master = Emergence::Argon2Sovereign::derive("phoenix-v1", hwid, nullptr);
-    EmergenceOS::g_master_seed = master;
-
-    EmergenceOS::g_manifold_instance = new (manifold_storage) Emergence::SubstrateManifold();
-    EmergenceOS::g_manifold_instance->manual_init(32, EmergenceOS::g_disk);
-    EmergenceOS::g_manifold_instance->initialize(master);
-
-    static uint8_t trans_storage[sizeof(Emergence::LogicTransducer)] __attribute__((aligned(16)));
-    EmergenceOS::g_transducer = new (trans_storage) Emergence::LogicTransducer(*EmergenceOS::g_manifold_instance);
-
-    static uint8_t audit_storage[sizeof(Emergence::AuditLogger)] __attribute__((aligned(16)));
-    EmergenceOS::g_audit = new (audit_storage) Emergence::AuditLogger(*EmergenceOS::g_manifold_instance);
-    EmergenceOS::g_audit->log(Emergence::AuditLogger::EVENT_BOOT);
-
     uint64_t lfb = 0; uint32_t w=0, h=0, p=0;
     bool vga_active = false;
     if (magic == 0x36d76289) {
@@ -185,7 +170,6 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
             tag += ((size + 7) & ~7);
         }
     }
-
     static uint8_t vga_storage[sizeof(EmergenceOS::Graphics)] __attribute__((aligned(16)));
     EmergenceOS::g_vga = new (vga_storage) EmergenceOS::Graphics();
     if (vga_active) EmergenceOS::g_vga->initialize(lfb, w, h, p);
@@ -196,22 +180,46 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
     static uint8_t vmx_storage[sizeof(EmergenceOS::VMXController)] __attribute__((aligned(16)));
     EmergenceOS::g_vmx = new (vmx_storage) EmergenceOS::VMXController();
     bool vmx_ready = EmergenceOS::g_vmx->enable();
+
+    // 4. SOVEREIGN IGNITION (AUTHENTICATION)
+    EmergenceOS::Keyboard kb;
+    char pass[64];
+    if (EmergenceOS::g_vga) {
+        EmergenceOS::g_vga->clear(0x00080808);
+        EmergenceOS::g_vga->draw_border(200, 200, 600, 200, 0x00222222, 1);
+        EmergenceOS::g_vga->print_at("CONSENSUS SOVEREIGN ACCESS", 350, 220, 0x0000FFFF);
+        EmergenceOS::g_vga->print_at("ENTER ACCESS KEY: ", 250, 280, 0x00FFFFFF);
+        EmergenceOS::g_vga->swap_buffers();
+        kb.read_password(pass, 64, EmergenceOS::g_vga);
+    }
+
+    char hwid[16]; Consensus::generate_device_id(hwid);
+    Emergence::Seed master = Emergence::Argon2Sovereign::derive(pass, hwid, nullptr);
+    EmergenceOS::g_master_seed = master;
+
+    // 5. Initialize Manifold (Literal Resolve)
+    if (EmergenceOS::g_vga) {
+        EmergenceOS::g_vga->print_at("\nIGNITING MANIFOLD...", 250, 320, 0x00FFFF00);
+        EmergenceOS::g_vga->swap_buffers();
+    }
     
+    EmergenceOS::g_manifold_instance = new (manifold_storage) Emergence::SubstrateManifold();
+    EmergenceOS::g_manifold_instance->manual_init(32, EmergenceOS::g_disk);
+    EmergenceOS::g_manifold_instance->initialize(master);
+
     static uint8_t control_storage[sizeof(EmergenceOS::NeumannControlPanel)] __attribute__((aligned(16)));
     EmergenceOS::g_control = new (control_storage) EmergenceOS::NeumannControlPanel(EmergenceOS::g_vga, EmergenceOS::g_res, master, EmergenceOS::g_manifold_instance);
-    
-    EmergenceOS::Keyboard kb;
+
     int selection = 0;
     while(true) {
-        // 1. Reset shell states before menu
         EmergenceOS::g_in_shell = true;
         EmergenceOS::g_in_control_panel = false;
 
-        // 2. Menu Selection Loop
         while(true) {
             if (EmergenceOS::g_vga) {
                 EmergenceOS::g_vga->clear(0x00080808);
                 EmergenceOS::g_vga->print_at("=== CONSENSUS ENTERPRISE HYPERVISOR ===", 300, 200, 0x0000FFFF);
+                
                 #ifdef SOVEREIGN_BUILD
                     EmergenceOS::g_vga->print_at("PHOENIX vX [SOVEREIGN] | CAPACITY: UNLIMITED", 250, 130, 0x00FF00FF);
                 #elif defined(EVALUATION_BUILD)
@@ -219,20 +227,25 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
                 #else
                     EmergenceOS::g_vga->print_at("PHOENIX v1.0 [RELEASE] | CAPACITY: 10 TB", 250, 130, 0x00FFFF00);
                 #endif
+
                 if (vmx_ready) EmergenceOS::g_vga->print_at("VMX_ACCELERATION: [ENABLED]", 300, 150, 0x0000FF00);
-                if (selection == 0) EmergenceOS::g_vga->print_at("> 1. Launch Sovereign Shell", 250, 240, 0x0000FF00);
-                else EmergenceOS::g_vga->print_at("  1. Launch Sovereign Shell", 250, 240, 0x00FFFFFF);
+                
+                if (selection == 0) EmergenceOS::g_vga->print_at("> 1. Launch Sovereign Workspace", 250, 240, 0x0000FF00);
+                else EmergenceOS::g_vga->print_at("  1. Launch Sovereign Workspace", 250, 240, 0x00FFFFFF);
+
                 if (selection == 1) EmergenceOS::g_vga->print_at("> 2. Neumann Control Panel", 250, 260, 0x0000FF00);
                 else EmergenceOS::g_vga->print_at("  2. Neumann Control Panel", 250, 260, 0x00FFFFFF);
+                
                 EmergenceOS::g_vga->swap_buffers();
             }
-            char c = kb.read_char();
-            if (c == 'w') selection = 0;
-            if (c == 's') selection = 1;
-            if (c == '\n' || c == '\r') break;
+            
+            uint8_t sc = kb.read_raw_scancode();
+            if (sc == EmergenceOS::Keyboard::KEY_UP) selection = 0;
+            if (sc == EmergenceOS::Keyboard::KEY_DOWN) selection = 1;
+            
+            if (sc == 0x1C) break; // Enter key
         }
 
-        // 3. Execution Pass
         if (selection == 0) {
             EmergenceOS::sovereign_shell(kb);
         } else {
