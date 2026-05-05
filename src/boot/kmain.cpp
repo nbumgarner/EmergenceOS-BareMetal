@@ -36,6 +36,7 @@ namespace EmergenceOS {
     
     bool g_in_shell = true;
     bool g_in_control_panel = false;
+    
     uint32_t hypercube_frame = 0;
     int phase_lock_divisor = 1;
     NeumannControlPanel::Region g_focus = NeumannControlPanel::REGION_CONSOLE;
@@ -64,6 +65,9 @@ namespace EmergenceOS {
         kmemset(cmd, 0, 128);
         uint64_t last_pulse = EmergenceOS::g_temporal_pulse;
 
+        // Clear screen ONCE upon entry
+        g_vga->clear(0x00080808);
+
         while(g_in_shell) {
             while(EmergenceOS::g_temporal_pulse == last_pulse) { __asm__ __volatile__ ("pause"); }
             last_pulse = EmergenceOS::g_temporal_pulse;
@@ -71,16 +75,19 @@ namespace EmergenceOS {
             if (g_in_control_panel) {
                 g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, hypercube_frame, nullptr);
                 g_vga->draw_spinning_cube(hypercube_frame, 0, 0, (hypercube_frame % (60 * phase_lock_divisor) == 0), 0, 0);
+                
                 uint32_t prompt_color = (g_focus == NeumannControlPanel::REGION_CONSOLE) ? 0x0000FF00 : 0x00003333;
                 g_vga->print_at("[PHOENIX]> ", 320, 520, prompt_color);
                 g_vga->print_at(cmd, 410, 520, 0x00FFFFFF);
                 if (g_focus == NeumannControlPanel::REGION_CONSOLE && (hypercube_frame / 16) % 2) 
                     g_vga->print_at("_", 410 + (cmd_idx * 8), 520, 0x0000FF00);
             } else {
-                g_vga->clear(0x00080808);
+                // Persistent shell: Only redraw header and current prompt line
+                g_vga->draw_rect(0, 0, 1024, 60, 0x00080808);
                 g_vga->print_at("=== CONSENSUS SOVEREIGN WORKSPACE ===", 10, 10, 0x0000FFFF);
-                g_vga->print_at("\n[Sovereign]> ", 10, 30, 0x0000FF00);
-                g_vga->print_at(cmd, 120, 30, 0x00FFFFFF);
+                g_vga->draw_rect(0, 480, 1024, 40, 0x00080808);
+                g_vga->print_at("[Sovereign]> ", 10, 500, 0x0000FF00);
+                g_vga->print_at(cmd, 120, 500, 0x00FFFFFF);
             }
 
             g_vga->swap_buffers();
@@ -105,8 +112,11 @@ namespace EmergenceOS {
                 continue;
             }
 
-            if (c == '\b' && cmd_idx > 0) { cmd[--cmd_idx] = '\0'; }
-            else if (cmd_idx < 127 && c >= 32) { cmd[cmd_idx++] = c; }
+            if (c == '\b' && cmd_idx > 0) {
+                cmd[--cmd_idx] = '\0';
+            } else if (cmd_idx < 127 && c >= 32) {
+                cmd[cmd_idx++] = c;
+            }
         }
     }
 }
@@ -157,6 +167,7 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
     EmergenceOS::g_vmx = new (vmx_storage) EmergenceOS::VMXController();
     bool vmx_ready = EmergenceOS::g_vmx->enable();
 
+    // 4. SOVEREIGN IGNITION (AUTHENTICATION)
     EmergenceOS::Keyboard kb;
     char pass[64];
     if (EmergenceOS::g_vga) {
@@ -164,6 +175,7 @@ extern "C" void kmain(uint32_t magic, uint32_t info_addr) {
         EmergenceOS::g_vga->draw_border(200, 200, 600, 200, 0x00222222, 1);
         EmergenceOS::g_vga->print_at("CONSENSUS SOVEREIGN ACCESS", 350, 220, 0x0000FFFF);
         EmergenceOS::g_vga->print_at("ENTER ACCESS KEY: ", 250, 280, 0x00FFFFFF);
+        EmergenceOS::g_vga->set_cursor(400, 280);
         EmergenceOS::g_vga->swap_buffers();
         kb.read_password(pass, 64, EmergenceOS::g_vga);
     }

@@ -94,6 +94,11 @@ namespace EmergenceOS {
             str[i] = '\0';
         }
 
+        void set_cursor(uint32_t x, uint32_t y) {
+            cursor_x = x;
+            cursor_y = y;
+        }
+
         uint32_t get_cursor_y() const { return cursor_y; }
         uint32_t get_width() const { return width_; }
         uint32_t get_height() const { return height_; }

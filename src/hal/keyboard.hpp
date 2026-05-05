@@ -101,15 +101,22 @@ namespace EmergenceOS {
         void read_password(char* buf, int max, Graphics* vga = nullptr) {
             int i = 0;
             while(i < max - 1) {
+                // Responsiveness Tweak: Yield to hypervisor
+                __asm__ __volatile__ ("pause");
+
+                if (!is_data_available()) continue;
                 char c = read_char();
+                
                 if (c == '\n' || c == '\r') break;
                 if (c == '\b' && i > 0) {
                     i--;
                     if (vga) { vga->put_char('\b', 0); vga->swap_buffers(); }
                     continue;
                 }
-                buf[i++] = c;
-                if (vga) { vga->put_char('*', 0x00FFFF00); vga->swap_buffers(); }
+                if (c >= 32 && c <= 126) {
+                    buf[i++] = c;
+                    if (vga) { vga->put_char('*', 0x00FFFF00); vga->swap_buffers(); }
+                }
             }
             buf[i] = '\0';
         }
