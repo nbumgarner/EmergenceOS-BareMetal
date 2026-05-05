@@ -17,6 +17,30 @@ namespace Emergence {
     public:
         LogicTransducer(Topology& manifold) : manifold_(manifold) {}
 
+        void burn_atom(uint64_t intent, uint64_t result_lo) {
+            Value128 terminal = {0, result_lo};
+            manifold_.materialize_range(intent, (uint8_t*)&terminal, 16);
+        }
+
+        struct ExecutionState {
+            uint64_t last_resolve;
+            bool fault;
+        };
+
+        ExecutionState resolve_chain(const uint64_t* script, size_t count) {
+            ExecutionState state = {0, false};
+            for (size_t i = 0; i < count; i++) {
+                uint64_t intent = state.last_resolve ^ script[i];
+                Value128 terminal = manifold_.holographic_fetch(intent);
+                if (terminal.hi == 0 && terminal.lo == 0) {
+                    state.fault = true;
+                    return state;
+                }
+                state.last_resolve = terminal.lo;
+            }
+            return state;
+        }
+
         /**
          * Resolve logic "Spatially"
          * Coordinates are formed by combining (OPCODE | INPUT_A | INPUT_B)

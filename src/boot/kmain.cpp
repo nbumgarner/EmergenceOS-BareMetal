@@ -65,6 +65,7 @@ namespace EmergenceOS {
         kmemset(cmd, 0, 128);
         uint64_t last_pulse = EmergenceOS::g_temporal_pulse;
         bool prompt_needed = true;
+        uint64_t transient_pipe = 0;
 
         while(g_in_shell) {
             while(EmergenceOS::g_temporal_pulse == last_pulse) { __asm__ __volatile__ ("pause"); }
@@ -81,8 +82,8 @@ namespace EmergenceOS {
                     g_vga->print_at("_", 410 + (cmd_idx * 8), 520, 0x0000FF00);
             } else {
                 if (prompt_needed) {
-                    g_vga->clear(0x00000000);
-                    g_vga->print_at("=== SOVEREIGN SHELL vX (HARDENED) ===", 10, 10, 0x0000FFFF);
+                    g_vga->clear(0x00080808);
+                    g_vga->print_at("=== CONSENSUS SOVEREIGN WORKSPACE ===", 10, 10, 0x0000FFFF);
                     g_vga->print_at("\n[Sovereign]> ", 10, 30, 0x0000FF00);
                     prompt_needed = false;
                 }
@@ -97,39 +98,47 @@ namespace EmergenceOS {
             
             if (sc == Keyboard::KEY_TAB) {
                 g_focus = (NeumannControlPanel::Region)((g_focus + 1) % 3);
-                for(volatile int delay=0; delay<10000000; delay++);
-                continue;
-            }
-
-            if (g_focus == NeumannControlPanel::REGION_SCHEDULING) {
-                if (sc == Keyboard::KEY_UP) g_res->set_active_cores(2);
-                if (sc == Keyboard::KEY_DOWN) g_res->set_active_cores(1);
                 continue;
             }
 
             char c = kb.scancode_to_char(sc);
             if (c == 0) continue;
 
-            if (c == '+' && g_focus == NeumannControlPanel::REGION_MANIFOLD) phase_lock_divisor++;
-            if (c == '-' && g_focus == NeumannControlPanel::REGION_MANIFOLD && phase_lock_divisor > 1) phase_lock_divisor--;
-
             if (c == '\n' || c == '\r') {
                 cmd[cmd_idx] = '\0';
-                if (kstarts_with(cmd, "back")) { g_in_shell = false; return; }
-                else if (kstarts_with(cmd, "fold")) { g_res->fold_manifold(1); }
-                else if (kstarts_with(cmd, "verify")) {
-                    static const uint8_t EXPECTED[32] = {0x33,0x9A,0x2A,0xFC,0x43,0x35,0x91,0x23,0x1F,0x0A,0x99,0x87,0x6A,0x1C,0xDE,0x43,0x21,0x7F,0xA3,0x99,0xBC,0xD1,0x23,0x4F,0x6E,0x1A,0x2B,0x3C,0x4D,0x5E,0x6F,0x7A};
-                    g_control->draw_panel(g_res->get_active_cores(), g_res->get_active_nodes(), g_focus, hypercube_frame, EXPECTED);
-                    g_vga->swap_buffers();
-                    for(volatile int delay=0; delay<200000000; delay++);
+                
+                bool match;
+                kstrcmp(cmd, "help", match);
+                if (match) {
+                    g_vga->print_at("\n COMMANDS: ls, reg, rm, burn, run, seal, stats, control, back", 10, g_vga->get_cursor_y(), 0x0000FFFF);
+                    g_vga->print_at("\n SCRIPTING: Use '|' to pipe terminal lo to next resolve seed.", 10, g_vga->get_cursor_y(), 0x00AAAAAA);
                 }
+                else if (kstarts_with(cmd, "reg")) {
+                    g_vga->print_at("\n HARDWARE REGISTRY: CORES=2, APERTURE=100TB, SEC=SILICON_LOCKED", 10, g_vga->get_cursor_y(), 0x00FFFF00);
+                }
+                else if (kstarts_with(cmd, "rm ")) {
+                    g_vga->print_at("\n PURGING TOPOLOGICAL BLOCK...", 10, g_vga->get_cursor_y(), 0x00FF0000);
+                }
+                else if (kstarts_with(cmd, "burn ")) {
+                    g_vga->print_at("\n MATERIALIZING SPATIAL ATOM...", 10, g_vga->get_cursor_y(), 0x0000FF00);
+                    g_transducer->burn_atom(0x1337, 0xBEEF);
+                }
+                else if (kstarts_with(cmd, "run ")) {
+                    g_vga->print_at("\n EXECUTING SPATIAL CHAIN...", 10, g_vga->get_cursor_y(), 0x00FFFF00);
+                    uint64_t script[] = {0x1337};
+                    auto res = g_transducer->resolve_chain(script, 1);
+                    transient_pipe = res.last_resolve;
+                }
+                else if (kstarts_with(cmd, "back")) { g_in_shell = false; return; }
+                else if (kstarts_with(cmd, "fold")) { g_res->fold_manifold(1); }
+                
                 kmemset(cmd, 0, 128); cmd_idx = 0; prompt_needed = true;
                 continue;
             }
 
             if (c == '\b' && cmd_idx > 0) {
                 cmd[--cmd_idx] = '\0';
-            } else if (cmd_idx < 127 && c >= 32 && g_focus == NeumannControlPanel::REGION_CONSOLE) {
+            } else if (cmd_idx < 127 && c >= 32 && (g_in_control_panel ? g_focus == NeumannControlPanel::REGION_CONSOLE : true)) {
                 cmd[cmd_idx++] = c;
             }
         }
