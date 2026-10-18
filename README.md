@@ -38,6 +38,10 @@ what a component was meant to resemble, by analogy, rather than what it does: a 
 "Neumann control panel", "entropy" thresholds and similar. Read the code, not the names, for what it
 actually does.
 
+In the author's view the framework is **incomplete**. The AI that wrote it reported features as working,
+and it is not yet known which of them do and which only appear to. Treat everything beyond the
+build-and-boot check above as unverified.
+
 ## Correction (2026-10-18)
 
 Earlier versions of this README made performance and storage claims for components that are not in
