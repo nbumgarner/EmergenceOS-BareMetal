@@ -1,0 +1,5 @@
+# build outputs (make)
+build/
+emergence_os.bin
+emergence_os.iso
+isodir/boot/emergence_os.bin

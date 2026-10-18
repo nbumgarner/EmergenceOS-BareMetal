@@ -1,21 +1,49 @@
-# Consensus Hypervisor: The Sovereign Framework (Public Edition)
+# EmergenceOS bare-metal framework (public edition)
 
-## What is this?
-This repository contains the **Hardware Abstraction Layer (HAL)** and **Architectural Skeleton** for the Consensus Hypervisor (EmergenceOS). It is a Type-1 bare-metal environment designed to explore the concept of "Sovereign Computing"—where data structure is derived from hardware-anchored seeds.
+A small 64-bit kernel that boots through GRUB and Multiboot2, on bare metal or in QEMU, with its own
+drivers and a graphical console. This is the public edition of the EmergenceOS bare-metal work from
+May 2026. It contains the hardware layer and a reference storage layout; other components of the full
+system are not included.
 
-## Included Components
-*   **Bare-Metal HAL**: Full implementations for AHCI (SATA) DMA, PCI Discovery, and VGA HUD.
-*   **The Sovereign Trap**: Hardware interrupt handlers for the `Ctrl+Alt+Shift+E` hypervisor context switch.
-*   **Reference Topology**: A functional, 1-hop implementation of a content-addressable manifold.
+## What is in it
 
-## Protected Implementation (Enterprise Binary Only)
-To protect the commercial viability of the "Sub-Shannon" research, the following high-performance components are **excluded** from this public source release and are only available in the signed **Hardened Binary Packages**:
-1.  **h010g1rAM Optimized Substrate**: The 8-hop path-memoized fetch engine.
-2.  **Sub-Shannon Storage Engine**: The 2048-candidate probing logic achieving the 0.03% storage ratio.
-3.  **Neumann Bypass**: The logic-transduction layer for spatial instruction resolution.
+These descriptions follow the file and directory names (see the note on how it was written, below).
+What has been checked is that it builds and boots.
 
-## Verifiable Claims
-You can build and boot this framework to verify the **Forensic Invisibility** claim. Even the reference topology produces a disk footprint that is indistinguishable from random noise (Entropy > 0.9).
+| directory | contents |
+|---|---|
+| `src/boot` | Multiboot2 header, 64-bit start-up and the kernel's main loop |
+| `src/hal` | drivers: AHCI (SATA), PCI enumeration, VGA graphics and on-screen console, keyboard, timer, interrupt table, serial |
+| `src/mm` | memory management and allocation |
+| `src/vdev` | virtual block devices (virtio-blk) and a reference storage layout |
+| `src/core`, `src/crypto` | the kernel's state engine and supporting primitives (SHA-256 and others) |
+
+## Build and run
+
+You need GCC and binutils for x86_64 (the `x86_64-linux-gnu-` tools), `grub-mkrescue` with
+`xorriso`, and QEMU.
+
+```bash
+make
+qemu-system-x86_64 -m 512 -cdrom emergence_os.iso
+```
+
+Checked on 2026-10-18 from a clean clone, with GCC 15, GRUB 2.14 and QEMU 11 (with KVM). It builds a
+55 KB kernel and a 13 MB ISO, and boots to its access-key screen.
+
+## How it was written
+
+The code was generated with Google's Gemini in May 2026. Many names and comments in the source describe
+what a component was meant to resemble, by analogy, rather than what it does: a "state engine", a
+"Neumann control panel", "entropy" thresholds and similar. Read the code, not the names, for what it
+actually does.
+
+## Correction (2026-10-18)
+
+Earlier versions of this README made performance and storage claims for components that are not in
+this repository: a 0.03% storage ratio, and a disk footprint with entropy above 0.9. No measurement
+in this repository supports them, so they have been removed. This README now describes only what is
+here and what has been checked.
 
 ## License
 
@@ -31,7 +59,3 @@ the licensor's additional permissions. The same license covers all emerging.syst
   at 1,000,000 USD a year. See [COMMERCIAL.md](COMMERCIAL.md).
 
 This replaces the earlier licensing note, which named an Emergence Systems License v1.0 that was never included in this repository.
-
----
-**Build & Run:**
-`make && qemu-system-x86_64 -cdrom emergence_os.iso`
