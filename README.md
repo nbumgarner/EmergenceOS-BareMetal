@@ -17,8 +17,20 @@ To protect the commercial viability of the "Sub-Shannon" research, the following
 ## Verifiable Claims
 You can build and boot this framework to verify the **Forensic Invisibility** claim. Even the reference topology produces a disk footprint that is indistinguishable from random noise (Entropy > 0.9).
 
-## Licensing
-This framework is released under the **Emergence Systems License v1.0**. Free for individual evaluation; commercial usage requires a signed Enterprise Agreement.
+## License
+
+Source-available under [LICENSE.md](LICENSE.md): the PolyForm Small Business License 1.0.0 with
+the licensor's additional permissions. The same license covers all emerging.systems projects.
+
+- **Free for individuals and for companies under the revenue threshold** (1,000,000 USD in 2019
+  dollars, adjusted for inflation; no headcount limit).
+- **Free for educational use by anyone, whatever their revenue:** teaching and learning,
+  instruction at schools, universities and other institutions, and academic or non-commercial
+  research.
+- **Above the threshold, a commercial license is required:** 1% of attributable revenue, capped
+  at 1,000,000 USD a year. See [COMMERCIAL.md](COMMERCIAL.md).
+
+This replaces the earlier licensing note, which named an Emergence Systems License v1.0 that was never included in this repository.
 
 ---
 **Build & Run:**
